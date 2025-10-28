@@ -9,6 +9,7 @@ class Bank {
 
     public double totalTransfers = 0;
     public double totalProvisions = 0;
+
     Bank(String name, Account[] accounts) {
         this.name = name;
         this.accounts = accounts;
