@@ -6,7 +6,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
-class Timestamp<T> {
+class Timestamp<T> implements Comparable<Timestamp<T>> {
     final LocalDateTime time;
     final T element;
 
@@ -23,7 +23,8 @@ class Timestamp<T> {
         return element;
     }
 
-    int compareTo(Timestamp<T> o) {
+    @Override
+    public int compareTo(Timestamp<T> o) {
         return time.compareTo(o.time);
     }
 
@@ -35,10 +36,14 @@ class Timestamp<T> {
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(time);
+    }
+
+    @Override
     public String toString() {
         return time + " " + element + "\n";
     }
-
 }
 
 class Scheduler<T> {
@@ -64,12 +69,12 @@ class Scheduler<T> {
     }
 
     boolean remove(Timestamp<T> t) {
-        for (int i=0; i<elementsInside; i++) {
+        for (int i = 0; i < elementsInside; i++) {
             if (timestamp[i].equals(t)) {
-                for (int j=i;j<elementsInside;j++) {
-                    timestamp[j] = timestamp[j+1];
+                for (int j = i; j < elementsInside; j++) {
+                    timestamp[j] = timestamp[j + 1];
                 }
-                timestamp[elementsInside-1] = null;
+                timestamp[elementsInside - 1] = null;
                 elementsInside--;
                 return true;
             }
@@ -77,7 +82,59 @@ class Scheduler<T> {
         return false;
     }
 
+    Timestamp<T> next() {
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
 
+        Arrays.sort(timestamp, 0, elementsInside, Comparator.comparing(Timestamp::getTime));
+
+        for (int i = 0; i < elementsInside; i++) {
+            if (!timestamp[i].time.isBefore(now)) {
+                return timestamp[i];
+            }
+        }
+
+        return null;
+    }
+
+    Timestamp<T> last() {
+        LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+
+        Arrays.sort(timestamp, 0, elementsInside, Comparator.comparing(Timestamp::getTime));
+
+        for (int i = 0; i < elementsInside; i++) {
+            if (!timestamp[i].time.isBefore(now)) {
+                if (i++ >= elementsInside) {
+                    return timestamp[i];
+                } else {
+                    return timestamp[i++];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    List<Timestamp<T>> getAll(LocalDateTime begin, LocalDateTime end) {
+        // Create a new ArrayList to store the timestamps that fall within the range
+        List<Timestamp<T>> result = new ArrayList<>();
+
+        // Iterate through all timestamps currently in the scheduler
+        for (int i = 0; i < elementsInside; i++) {
+            // Get the time of the current timestamp
+            LocalDateTime currentTime = timestamp[i].time;
+
+            // Check if currentTime is AFTER begin AND BEFORE end (exclusive bounds)
+            // isAfter(begin) ensures we don't include begin itself
+            // isBefore(end) ensures we don't include end itself
+            if (currentTime.isAfter(begin) && currentTime.isBefore(end)) {
+                // This timestamp falls within the range, so add it to the result list
+                result.add(timestamp[i]);
+            }
+        }
+
+        // Return the list of all timestamps within the range
+        return result;
+    }
 }
 
 public class SchedulerTest {
@@ -185,5 +242,4 @@ public class SchedulerTest {
 
 }
 
-// vashiot kod ovde
 
