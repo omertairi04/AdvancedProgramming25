@@ -1,208 +1,193 @@
- package Exercises;
+package Exercises;
 
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
-class FileNameExistsException extends Exception {
-    public FileNameExistsException(String message) {
-        super(message);
+class Folder {
+    char name;
+    int totalSize;
+
+    public Folder(char name) {
+        this.name = name;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Folder)) return false;
+        Folder folder = (Folder) o;
+        return name == folder.name;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
+
 }
 
-interface IFile {
-    String getFileName();
-    long getFileSize();
-    String getFileInfo();
-    void sortBySize();
-    File findLargestFile();
-}
+class File implements Comparable<File> {
+    String name;
+    int size;
+    LocalDateTime timeCreated;
 
-class File implements IFile {
-    String fileName;
-    long fileSize;
-
-    public File(String fileName, long fileSize) {
-        this.fileName = fileName;
-        this.fileSize = fileSize;
+    public File(String name, int size, LocalDateTime timeCreated) {
+        this.name = name;
+        this.size = size;
+        this.timeCreated = timeCreated;
     }
 
-    @Override
-    public String getFileName() {
-        return this.fileName;
+    public int getYear() {
+        return timeCreated.getYear();
     }
 
-    @Override
-    public long getFileSize() {
-        return this.fileSize;
-    }
-
-    @Override
-    public String getFileInfo() {
-        // Right align to 10 chars
-        return "\t\tFile name:\t" + fileName + "\tFile size:\t" + fileSize + "\n";
-    }
-
-    @Override
-    public void sortBySize() {
-        // nothing to sort
-    }
-
-    @Override
-    public File findLargestFile() {
-        return this;
-    }
-}
-
-
-class Folder implements IFile {
-    String folderName;
-    List<IFile> fileList;
-    long folderSize;
-
-    public Folder(String fileName) {
-        this.folderName = fileName;
-        this.fileList = new ArrayList<>();
-        this.folderSize = 0;
-    }
-
-    void addFile(IFile file) throws FileNameExistsException {
-
-        for (IFile f : fileList) {
-            if (f.getFileName().equals(file.getFileName()))
-                throw new FileNameExistsException("There is already a file named " + file.getFileName() + " in the folder " + folderName);
-        }
-        folderSize += file.getFileSize();
-        fileList.add(file);
-    }
-
-    @Override
-    public String getFileName() {
-        return this.folderName;
-    }
-
-    @Override
-    public long getFileSize() {
-        long sum = 0;
-        for (IFile f : fileList)
-            sum += f.getFileSize();
-        return sum;
-    }
-
-    @Override
-    public String getFileInfo() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n\tFolder name:\t").append(folderName)
-                .append("\tFolder size:\t").append(folderSize).append("\n");
-
-        for (IFile f : fileList) {
-            sb.append(f.getFileInfo());
-        }
-
-        return sb.toString();
-    }
-
-    @Override
-    public void sortBySize() {
-        fileList.sort(Comparator.comparingLong(IFile::getFileSize));
-
-        for (IFile f : fileList) {
-            f.sortBySize(); // recursive sorting
-        }
-    }
-
-    @Override
-    public File findLargestFile() {
-        File largest = null;
-
-        for (IFile f : fileList) {
-            File curr = f.findLargestFile();
-            if (curr != null) {
-                if (largest == null || curr.getFileSize() > largest.getFileSize()) {
-                    largest = curr;
-                }
-            }
-        }
-
-        return largest;
-    }
-}
-
-class FileSystem {
-    Folder root;
-
-    public FileSystem() {
-        root = new Folder("root");
-    }
-
-    void addFile(IFile file) {
-        try {
-            root.addFile(file);
-        } catch (FileNameExistsException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    long findLargestFile() {
-        File f = root.findLargestFile();
-        return (f == null) ? 0 : f.getFileSize();
-    }
-
-    void sortBySize() {
-        root.sortBySize();
+    public String monthAndDay() {
+        return timeCreated.getMonth().toString() + "-" + timeCreated.getDayOfMonth();
     }
 
     @Override
     public String toString() {
-        return root.getFileInfo();
+        return String.format("%-10s %5dB %s", name, size, timeCreated);
+    }
+
+    @Override
+    public int compareTo(File o) {
+        int cmp = timeCreated.compareTo(o.timeCreated);
+        if (cmp != 0) return cmp;
+
+        cmp = name.compareTo(o.name);
+        if (cmp != 0) return cmp;
+
+        return Integer.compare(size, o.size);
+    }
+}
+
+
+class FileSystem {
+    HashMap<Folder, List<File>> files;
+
+    public FileSystem() {
+        files = new HashMap<>();
+    }
+
+    public void addFile(char folder, String name, int size, LocalDateTime createdAt) {
+        Folder folder1 = new Folder(folder);
+        files.computeIfAbsent(folder1, c -> new ArrayList<>()).add(new File(name, size, createdAt));
+        folder1.totalSize += size;
+    }
+
+    public List<File> findAllHiddenFilesWithSizeLessThen(int size) {
+        List<File> list = new ArrayList<>();
+        List<File> toReturn = new ArrayList<>();
+
+        for (Folder folder : files.keySet()) {
+            list.addAll(files.get(folder));
+        }
+
+        for (File file : list) {
+            if (file.name.startsWith(".") && file.size < size) {
+                toReturn.add(file);
+            }
+        }
+
+        return toReturn;
+
+    }
+
+    public int totalSizeOfFilesFromFolders(List<Character> folders) {
+        int total = 0;
+        for (Character c : folders) {
+            for (Folder folder : files.keySet()) {
+                if (folder.name == c) {
+                    List<File> list = files.get(folder);
+                    if (list != null) {
+                        for (File file : list) {
+                            total += file.size;
+                        }
+                    }
+                }
+            }
+        }
+
+        return total;
+    }
+
+    public Map<Integer, Set<File>> byYear() {
+        Map<Integer, Set<File>> byYear = new HashMap<>();
+        for (Folder folder : files.keySet()) {
+            for (File file : files.get(folder)) {
+                byYear.computeIfAbsent(file.getYear(), k -> new HashSet<>()).add(file);
+            }
+        }
+        return byYear;
+    }
+
+    public Map<String, Long> sizeByMonthAndDay() {
+        Map<String, Long> byMonthAndDay = new HashMap<>();
+
+        for (Folder folder : files.keySet()) {
+            for (File file : files.get(folder)) {
+                String key = file.monthAndDay();
+                byMonthAndDay.put(key, byMonthAndDay.getOrDefault(key, 0L) + file.size);
+            }
+        }
+
+        return byMonthAndDay;
     }
 
 }
 
 public class FileSystemTest {
-
-    public static Folder readFolder(Scanner sc) {
-
-        Folder folder = new Folder(sc.nextLine());
-        int totalFiles = Integer.parseInt(sc.nextLine());
-
-        for (int i = 0; i < totalFiles; i++) {
-            String line = sc.nextLine();
-
-            if (line.startsWith("0")) {
-                String fileInfo = sc.nextLine();
-                String[] parts = fileInfo.split("\\s+");
-                try {
-                    folder.addFile(new File(parts[0], Long.parseLong(parts[1])));
-                } catch (FileNameExistsException e) {
-                    System.out.println(e.getMessage());
-                }
-            } else {
-                try {
-                    folder.addFile(readFolder(sc));
-                } catch (FileNameExistsException e) {
-                    System.out.println(e.getMessage());
-                }
-            }
-        }
-
-        return folder;
-    }
-
     public static void main(String[] args) {
-
-        Scanner sc = new Scanner(System.in);
-
-        System.out.println("===READING FILES FROM INPUT===");
         FileSystem fileSystem = new FileSystem();
-        fileSystem.root = readFolder(sc);
-
-        System.out.println("===PRINTING FILE SYSTEM INFO===");
-        System.out.println(fileSystem);
-
-        System.out.println("===PRINTING FILE SYSTEM INFO AFTER SORTING===");
-        fileSystem.sortBySize();
-        System.out.println(fileSystem);
-
-        System.out.println("===PRINTING THE SIZE OF THE LARGEST FILE IN THE FILE SYSTEM===");
-        System.out.println(fileSystem.findLargestFile());
+        Scanner scanner = new Scanner(System.in);
+        int n = scanner.nextInt();
+        scanner.nextLine();
+        for (int i = 0; i < n; i++) {
+            String line = scanner.nextLine();
+            String[] parts = line.split(":");
+            fileSystem.addFile(parts[0].charAt(0), parts[1],
+                    Integer.parseInt(parts[2]),
+                    LocalDateTime.of(2016, 12, 29, 0, 0, 0).minusDays(Integer.parseInt(parts[3]))
+            );
+        }
+        int action = scanner.nextInt();
+        if (action == 0) {
+            scanner.nextLine();
+            int size = scanner.nextInt();
+            System.out.println("== Find all hidden files with size less then " + size);
+            List<File> files = fileSystem.findAllHiddenFilesWithSizeLessThen(size);
+            files.forEach(System.out::println);
+        } else if (action == 1) {
+            scanner.nextLine();
+            String[] parts = scanner.nextLine().split(":");
+            System.out.println("== Total size of files from folders: " + Arrays.toString(parts));
+            int totalSize = fileSystem.totalSizeOfFilesFromFolders(Arrays.stream(parts)
+                    .map(s -> s.charAt(0))
+                    .collect(Collectors.toList()));
+            System.out.println(totalSize);
+        } else if (action == 2) {
+            System.out.println("== Files by year");
+            Map<Integer, Set<File>> byYear = fileSystem.byYear();
+            byYear.keySet().stream().sorted()
+                    .forEach(key -> {
+                        System.out.printf("Year: %d\n", key);
+                        Set<File> files = byYear.get(key);
+                        files.stream()
+                                .sorted()
+                                .forEach(System.out::println);
+                    });
+        } else if (action == 3) {
+            System.out.println("== Size by month and day");
+            Map<String, Long> byMonthAndDay = fileSystem.sizeByMonthAndDay();
+            byMonthAndDay.keySet().stream().sorted()
+                    .forEach(key -> System.out.printf("%s -> %d\n", key, byMonthAndDay.get(key)));
+        }
+        scanner.close();
     }
 }
+
+// Your code here
+
+
