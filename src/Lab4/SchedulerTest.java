@@ -3,75 +3,53 @@ package Lab4;
 import java.util.*;
 
 class Scheduler<T> {
-    HashMap<Date, T> map;
-    Date currentDate;
+
+    private final TreeMap<Date, T> map;
 
     Scheduler() {
-        map = new HashMap<>();
+        map = new TreeMap<>();
     }
 
     void add(Date d, T t) {
-        if (!map.containsKey(d)) {
-            currentDate = d;
-            map.put(d, t);
-        }
+        if (map.containsKey(d)) return;  // they said duplicates don’t happen
+        map.put(d, t);
     }
 
     boolean remove(Date d) {
-        if (map.containsKey(d)) {
-            map.remove(d);
-            return true;
-        }
-        return false;
+        return map.remove(d) != null;
     }
 
     T next() {
-        for (Date key : map.keySet()) {
-            if (key.before(currentDate)) {
-                return map.get(key);
-            }
-        }
-        return null;
+        Date now = new Date();
+        Map.Entry<Date, T> entry = map.ceilingEntry(now);   // closest date ≥ now
+        return entry == null ? null : entry.getValue();
     }
 
     T last() {
-        for (Date key : map.keySet()) {
-            if (key.after(currentDate)) {
-                return map.get(key);
-            }
-        }
-        return null;
+        Date now = new Date();
+        Map.Entry<Date, T> entry = map.lowerEntry(now);     // closest date < now
+        return entry == null ? null : entry.getValue();
     }
 
     ArrayList<T> getAll(Date begin, Date end) {
-        ArrayList<T> es = new ArrayList<>();
-        for (Date key : map.keySet()) {
-            if (key.after(begin) && key.before(end)) {
-                es.add(map.get(key));
-            }
+        ArrayList<T> list = new ArrayList<>();
+        for (T value : map.subMap(begin, false, end, false).values()) {
+            list.add(value);
         }
-        return es;
+        return list;
     }
 
     T getFirst() {
-        Date smallestDate = new Date();
-        for (Date key : map.keySet()) {
-            if (smallestDate.after(key))
-                smallestDate = key;
-        }
-        return map.get(smallestDate);
+        if (map.isEmpty()) return null;
+        return map.firstEntry().getValue();
     }
 
     T getLast() {
-        Date smallestDate = new Date();
-        for (Date key : map.keySet()) {
-            if (smallestDate.before(key))
-                smallestDate = key;
-        }
-        return map.get(smallestDate);
+        if (map.isEmpty()) return null;
+        return map.lastEntry().getValue();
     }
-
 }
+
 
 public class SchedulerTest {
     public static void main(String[] args) {

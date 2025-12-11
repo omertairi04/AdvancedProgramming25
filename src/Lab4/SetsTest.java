@@ -2,7 +2,6 @@ package Lab4;
 
 import java.util.*;
 import java.util.function.Function;
-
 class Student {
     String id;
     List<Integer> grades;
@@ -14,28 +13,15 @@ class Student {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Student{id='").append(id).append("', grades=[");
-
-        for (int i = 0; i < grades.size(); i++) {
-            sb.append(grades.get(i));
-            if (i < grades.size() - 1) sb.append(", ");
-        }
-
-        sb.append("]}");
-        return sb.toString();
+        return String.format("Student{id='%s', grades=%s}", id, grades);
     }
 
     int coursesPassed() {
-        return this.grades.size();
+        return grades.size();
     }
 
-    int computeAvg() {
-        int totalGrades = 0;
-        for (int i = 0; i < grades.size(); i++) {
-            totalGrades += grades.get(i);
-        }
-        return totalGrades / grades.size();
+    double computeAvg() {
+        return grades.stream().mapToInt(i -> i).average().orElse(0);
     }
 
     String getId() {
@@ -44,18 +30,13 @@ class Student {
 }
 
 class Faculty {
-    HashMap<String, Student> map;
-
-    public Faculty() {
-        map = new HashMap<>();
-    }
+    private final Map<String, Student> map = new HashMap<>();
 
     void addStudent(String id, List<Integer> grades) {
         if (map.containsKey(id)) {
-            System.out.println("Student with ID " + id + " already exists!");
-        } else {
-            map.put(id, new Student(id, grades));
+            throw new RuntimeException("Student with ID " + id + " already exists");
         }
+        map.put(id, new Student(id, grades));
     }
 
     void addGrade(String id, int grade) {
@@ -64,29 +45,27 @@ class Faculty {
 
     Set<Student> getStudentsSortedByAverageGrade() {
 
-        TreeSet<Student> sorted = new TreeSet<>(
-                Comparator.comparingInt(Student::computeAvg)
-                        .thenComparing(Student::getId)
-        );
-
-        sorted.addAll(map.values());   // ← YOU FORGOT THIS
-
-        return sorted;
+        return new TreeSet<>(
+                Comparator.comparingDouble(Student::computeAvg).reversed()
+                        .thenComparing(Student::coursesPassed, Comparator.reverseOrder())
+                        .thenComparing(Student::getId, Comparator.reverseOrder())
+        ) {{
+            addAll(map.values());
+        }};
     }
 
     Set<Student> getStudentsSortedByCoursesPassed() {
 
-        TreeSet<Student> sorted = new TreeSet<>(
-                Comparator.comparingInt(Student::coursesPassed)
-                        .thenComparing(Student::computeAvg)
-                        .reversed()
-        );
-
-        sorted.addAll(map.values());   // ← AND THIS
-
-        return sorted;
+        return new TreeSet<>(
+                Comparator.comparingInt(Student::coursesPassed).reversed()
+                        .thenComparing(Student::computeAvg, Comparator.reverseOrder())
+                        .thenComparing(Student::getId, Comparator.reverseOrder())
+        ) {{
+            addAll(map.values());
+        }};
     }
 }
+
 
 public class SetsTest {
 
