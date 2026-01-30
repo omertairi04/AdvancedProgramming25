@@ -1,0 +1,6 @@
+Factory --- D
+Strategy
+Composite --- D
+Singleton
+Decorator
+Observer

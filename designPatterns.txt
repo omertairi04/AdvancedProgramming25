@@ -1,6 +1,0 @@
-Factory
-Strategy
-Composite
-Singleton
-Decorator
-Observer
