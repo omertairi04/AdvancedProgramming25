@@ -3,8 +3,6 @@ package Exercises;
 import java.time.LocalDateTime;
 import java.util.*;
 
-/* ===================== ARTICLE ===================== */
-
 class Article {
     private final String category;
     private final String author;
@@ -40,50 +38,105 @@ class Article {
     }
 }
 
-/* ===================== USER ===================== */
+interface Observer {
+    void update(Article article);
+}
 
-class NUser {
-    String username;
-    Set<String> subscribedCategories;
-    Set<String> subscribedAuthors;
+interface Subject {
+    void subscribe(Observer o);
 
-    public NUser(String username) {
-        this.username = username;
-        this.subscribedCategories = new HashSet<>();
-        this.subscribedAuthors = new HashSet<>();
+    void unsubscribe(Observer o);
+
+    void notifyObservers(Article article);
+}
+
+class Category implements Subject {
+    String name;
+    Set<Observer> observers;
+
+    public Category(String name) {
+        this.name = name;
+        this.observers = new HashSet<>();
     }
 
-    void addCategory(String category) {
-        subscribedCategories.add(category);
+    @Override
+    public void subscribe(Observer o) {
+        observers.add(o);
     }
 
-    void removeCategory(String category) {
-        subscribedCategories.remove(category);
+    @Override
+    public void unsubscribe(Observer o) {
+        observers.remove(o);
     }
 
-    void addAuthor(String author) {
-        subscribedAuthors.add(author);
-    }
-
-    void removeAuthor(String author) {
-        subscribedAuthors.remove(author);
+    @Override
+    public void notifyObservers(Article article) {
+        observers.forEach(o -> o.update(article));
     }
 }
 
-/* ===================== NEWS SYSTEM ===================== */
+class Author implements Subject {
+    String name;
+    Set<Observer> observers;
+
+    public Author(String name) {
+        this.name = name;
+        this.observers = new HashSet<>();
+    }
+
+    @Override
+    public void subscribe(Observer o) {
+        observers.add(o);
+    }
+
+    @Override
+    public void unsubscribe(Observer o) {
+        observers.remove(o);
+    }
+
+    @Override
+    public void notifyObservers(Article article) {
+        observers.forEach(o -> o.update(article));
+    }
+}
+
+class NUser implements Observer {
+    String username;
+    List<Article> recievedArticles;
+
+    public NUser(String username) {
+        this.username = username;
+        this.recievedArticles = new ArrayList<>();
+    }
+
+    @Override
+    public void update(Article article) {
+        if (!recievedArticles.contains(article)) {
+            recievedArticles.add(article);
+        }
+    }
+
+    public void printNews() {
+        System.out.println("News for user: " + username);
+        recievedArticles.stream()
+                .sorted(Comparator.comparing(Article::getTimestamp))
+                .forEach(System.out::println);
+    }
+}
 
 class NewsSystem {
-    List<String> categoryNames;
-    List<String> authorNames;
 
+    Map<String, Category> categories;
+    Map<String, Author> authors;
     Map<String, NUser> users;
-    Map<String, List<Article>> articlesByCategory;
 
     public NewsSystem(List<String> categoryNames, List<String> authorNames) {
-        this.categoryNames = categoryNames;
-        this.authorNames = authorNames;
-        this.users = new HashMap<>();
-        this.articlesByCategory = new HashMap<>();
+        categories = new HashMap<>();
+        authors = new HashMap<>();
+        users = new HashMap<>();
+
+        categoryNames.forEach(c -> categories.put(c, new Category(c)));
+        authorNames.forEach(a -> authors.put(a, new Author(a)));
     }
 
     public void addUser(String username) {
@@ -91,59 +144,39 @@ class NewsSystem {
     }
 
     public void subscribeUserToCategory(String username, String categoryName) {
-        users.get(username).addCategory(categoryName);
+        NUser user = users.get(username);
+        Category category = categories.get(categoryName);
+        category.subscribe(user);
     }
 
     public void unsubscribeUserFromCategory(String username, String categoryName) {
-        users.get(username).removeCategory(categoryName);
+        NUser user = users.get(username);
+        Category category = categories.get(categoryName);
+        category.unsubscribe(user);
     }
 
     public void subscribeUserToAuthor(String username, String authorName) {
-        users.get(username).addAuthor(authorName);
+        NUser user = users.get(username);
+        Author author = authors.get(authorName);
+        author.subscribe(user);
     }
 
     public void unsubscribeUserFromAuthor(String username, String authorName) {
-        users.get(username).removeAuthor(authorName);
+        NUser user = users.get(username);
+        Author author = authors.get(authorName);
+        author.unsubscribe(user);
     }
 
     public void publishArticle(Article article) {
-        articlesByCategory
-                .computeIfAbsent(article.getCategory(), k -> new ArrayList<>())
-                .add(article);
+        categories.get(article.getCategory()).notifyObservers(article);
+        authors.get(article.getAuthor()).notifyObservers(article);
     }
 
     public void printNewsForUser(String username) {
-        NUser user = users.get(username);
-        if (user == null) return;
-
-        Set<Article> received = new HashSet<>();
-
-        // category subscriptions
-        for (String category : user.subscribedCategories) {
-            List<Article> list = articlesByCategory.get(category);
-            if (list != null) {
-                received.addAll(list);
-            }
-        }
-
-        // author subscriptions
-        for (List<Article> list : articlesByCategory.values()) {
-            for (Article article : list) {
-                if (user.subscribedAuthors.contains(article.getAuthor())) {
-                    received.add(article);
-                }
-            }
-        }
-
-        List<Article> result = new ArrayList<>(received);
-        result.sort(Comparator.comparing(Article::getTimestamp));
-
-        System.out.println("News for user: " + username);
-        for (Article article : result) {
-            System.out.println(article);
-        }
+        users.get(username).printNews();
     }
 }
+
 
 public class NewsSystemTest {
 
@@ -221,7 +254,3 @@ public class NewsSystemTest {
         }
     }
 }
-
-
-
-
